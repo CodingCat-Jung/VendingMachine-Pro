@@ -1,54 +1,62 @@
-// Inventory.java - LinkedList 기반 재고 관리
-
-import java.util.LinkedList;
-
 public class Inventory {
+    private Long id; // DB ID
     private String name;
     private int price;
-    private LinkedList<String> stockList; // LinkedList로 재고 관리
+    private int quantity; // 재고 수량
 
-    public Inventory(String name, int price, int initialStock) {
+    public Inventory(Long id, String name, int price, int quantity) {
+        this.id = id;
         this.name = name;
         this.price = price;
-        stockList = new LinkedList<>();
-        for (int i = 0; i < initialStock; i++) {
-            stockList.add(name + ":item" + (i + 1));
-        }
+        this.quantity = quantity;
     }
+
+    public Long getId() {
+        return id;
+    }
+
 
     public String getName() {
         return name;
-    }
-
-    public void setName(String newName) {
-        this.name = newName;
     }
 
     public int getPrice() {
         return price;
     }
 
-    public void setPrice(int newPrice) {
-        this.price = newPrice;
-    }
-
-    public int getStockCount() {
-        return stockList.size();
+    public int getQuantity() {
+        return quantity;
     }
 
     public void restock(int count) {
-        for (int i = 0; i < count; i++) {
-            stockList.add(name + ":new" + (i + 1));
-        }
+        quantity += count;
+        DBManager.updateInventoryQuantity(name, quantity); // DB 반영
     }
 
     public void sell() {
-        if (!stockList.isEmpty()) {
-            stockList.removeFirst();
+        if (quantity > 0) {
+            quantity--;
+            DBManager.updateInventoryQuantity(name, quantity); // DB 반영
         }
     }
 
     public boolean isOutOfStock() {
-        return stockList.isEmpty();
+        return quantity == 0;
     }
+
+    public int getStockCount() {
+        return quantity;
+    }
+
+    public void setName(String newName) {
+        this.name = newName;
+        DBManager.updateInventoryName(this.id, newName); // 이름 변경 DB 반영
+    }
+
+    public void setPrice(int newPrice) {
+        this.price = newPrice;
+        DBManager.updateInventoryPrice(this.id, newPrice); // 가격 변경 DB 반영
+    }
+
+
 }

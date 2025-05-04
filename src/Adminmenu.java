@@ -89,11 +89,9 @@ public class Adminmenu extends JFrame {
         setVisible(true);
     }
 
-    public static void logSale(String beverageName, int price) {
-        DBManager.insertSale(beverageName, price);
+    public static void logSale(long inventoryId, String beverageName, int price) {
+        DBManager.insertSale(inventoryId, beverageName, price);
     }
-
-
 
     public static void logSoldOut(String beverageName) {
         try (BufferedWriter writer = new BufferedWriter(new FileWriter("Quantity.txt", true))) {
@@ -137,24 +135,40 @@ public class Adminmenu extends JFrame {
         try {
             int denom = Integer.parseInt(JOptionPane.showInputDialog("수금할 화폐 단위 입력 (10, 50, 100, 500, 1000):"));
             int quantity = Integer.parseInt(JOptionPane.showInputDialog("수금할 수량 입력:"));
-            Money money = VendingMachine.getMoneyMap().getOrDefault(denom, null);
-            if (money == null) throw new Exception("존재하지 않는 화폐 단위입니다.");
+
+            Money money = VendingMachine.getMoneyMap().get(denom);
+            if (money == null) {
+                throw new Exception("존재하지 않는 화폐 단위입니다.");
+            }
+
             int current = money.getCount();
-            if (current - quantity < 5) throw new Exception("최소 5개의 잔돈은 남겨야 합니다.");
+            int minimumReserve = 5;
+
+            if (current - quantity < minimumReserve) {
+                throw new Exception("최소 " + minimumReserve + "개의 잔돈은 남겨야 합니다. 현재 수량: " + current);
+            }
+
+            // 수금 처리
             money.decrease(quantity);
+
+            // DB 동기화
+            DBManager.updateMoneyQuantity(denom, money.getCount());
+
+            // 수금 로그 기록
             String log = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) +
                     " - 수금: " + denom + "원 x " + quantity + "개";
             collectHistory.push(log);
-
-            // MySQL 병행 저장
             DBManager.insertCollectHistory(denom, quantity);
 
             JOptionPane.showMessageDialog(null, denom + "원 권 " + quantity + "개 수금 완료.");
             showMoneyStatus();
+        } catch (NumberFormatException e) {
+            JOptionPane.showMessageDialog(null, "입력 형식이 잘못되었습니다. 숫자를 입력하세요.");
         } catch (Exception e) {
             JOptionPane.showMessageDialog(null, "오류: " + e.getMessage());
         }
     }
+
 
     private void showCollectHistory() {
         DefaultTableModel model = new DefaultTableModel();
@@ -297,9 +311,10 @@ public class Adminmenu extends JFrame {
         model.addColumn("음료 이름");
         model.addColumn("총 판매 금액");
 
-        String sql = "SELECT beverage_name, SUM(price) AS total_price " +
-                "FROM sales " +
-                "GROUP BY beverage_name " +
+        String sql = "SELECT i.beverage_name, SUM(s.price) AS total_price " +
+                "FROM sales s " +
+                "JOIN inventory i ON s.inventory_id = i.id " +
+                "GROUP BY s.inventory_id " +
                 "ORDER BY total_price DESC";
 
         try (Connection conn = DriverManager.getConnection(
@@ -326,7 +341,11 @@ public class Adminmenu extends JFrame {
         String keyword = JOptionPane.showInputDialog("검색할 음료 이름 입력:");
         if (keyword == null || keyword.isBlank()) return;
 
-        String sql = "SELECT COUNT(*) AS cnt, SUM(price) AS total FROM sales WHERE beverage_name LIKE ?";
+        String sql = "SELECT i.beverage_name, COUNT(*) AS cnt, SUM(s.price) AS total " +
+                "FROM sales s " +
+                "JOIN inventory i ON s.inventory_id = i.id " +
+                "WHERE i.beverage_name LIKE ? " +
+                "GROUP BY i.beverage_name";
 
         try (
                 Connection conn = DriverManager.getConnection(
@@ -339,10 +358,13 @@ public class Adminmenu extends JFrame {
 
             try (ResultSet rs = pstmt.executeQuery()) {
                 if (rs.next()) {
+                    String name = rs.getString("beverage_name");
                     int count = rs.getInt("cnt");
                     int total = rs.getInt("total");
                     JOptionPane.showMessageDialog(null,
-                            keyword + " 판매량: " + count + "개\n총 판매 금액: " + total + "원");
+                            name + " 판매량: " + count + "개\n총 판매 금액: " + total + "원");
+                } else {
+                    JOptionPane.showMessageDialog(null, "검색 결과가 없습니다.");
                 }
             }
         } catch (Exception e) {
