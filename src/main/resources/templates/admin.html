@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>관리자 페이지</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 30px; }
+        h1 { margin-bottom: 20px; }
+        .section { margin-bottom: 40px; }
+        .form-group { margin-bottom: 10px; }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+
+        th, td {
+            padding: 8px;
+            text-align: center;
+            border: 1px solid #ddd;
+        }
+
+        th {
+            background-color: #f0f0f0;
+        }
+
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        /* 스크롤바가 필요한 테이블 */
+        .scrollable-table {
+            max-height: 200px;  /* 스크롤바가 나타나는 높이 */
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+
+        .scrollable-table::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .scrollable-table::-webkit-scrollbar-thumb {
+            background-color: #888;
+            border-radius: 4px;
+        }
+
+        .scrollable-table::-webkit-scrollbar-thumb:hover {
+            background-color: #555;
+        }
+    </style>
+</head>
+<body>
+
+<h1>관리자 페이지</h1>
+
+<!-- 알림 메시지 -->
+<div th:if="${message}" class="alert" th:classappend="${messageType == 'success' ? 'alert-success' : 'alert-error'}">
+    <p th:text="${message}"></p>
+</div>
+
+<!-- 판매 이력 (스크롤바 적용) -->
+<div class="section">
+    <h2>판매 이력</h2>
+    <div class="scrollable-table">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>음료 이름</th>
+                <th>가격</th>
+                <th>판매 시각</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="sale : ${sales}">
+                <td th:text="${sale.id}"></td>
+                <td th:text="${sale.beverageName}"></td>
+                <td th:text="${sale.price}"></td>
+                <td th:text="${#temporals.format(sale.timestamp, 'yyyy-MM-dd HH:mm:ss')}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 수금 이력 (스크롤바 적용) -->
+<div class="section">
+    <h2>수금 이력</h2>
+    <div class="scrollable-table">
+        <table>
+            <thead>
+            <tr>
+                <th>ID</th>
+                <th>화폐 단위</th>
+                <th>수량</th>
+                <th>수금 시각</th>
+            </tr>
+            </thead>
+            <tbody>
+            <tr th:each="collect : ${collects}">
+                <td th:text="${collect.id}"></td>
+                <td th:text="${collect.denomination}"></td>
+                <td th:text="${collect.amount}"></td>
+                <td th:text="${#temporals.format(collect.collectedAt, 'yyyy-MM-dd HH:mm:ss')}"></td>
+            </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 재고 현황 (스크롤바 없음) -->
+<div class="section">
+    <h2>재고 현황</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>음료 이름</th>
+            <th>수량</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="item : ${inventoryList}">
+            <td th:text="${item.name}"></td>
+            <td th:text="${item.quantity}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 화폐 현황 (스크롤바 없음) -->
+<div class="section">
+    <h2>화폐 현황</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>화폐 단위</th>
+            <th>수량</th>
+        </tr>
+        </thead>
+        <tbody>
+        <tr th:each="coin : ${coinList}">
+            <td th:text="${coin.denomination}"></td>
+            <td th:text="${coin.quantity}"></td>
+        </tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- 수금하기 -->
+<div class="section">
+    <h2>수금하기</h2>
+    <form th:action="@{/admin/collect}" method="post">
+        <div class="form-group">
+            <label>화폐 단위:</label>
+            <input type="number" name="denomination" placeholder="1000, 500, 100, 50, 10" required>
+        </div>
+        <div class="form-group">
+            <label>수량:</label>
+            <input type="number" name="amount" placeholder="수량 입력" required>
+        </div>
+        <button type="submit">수금하기</button>
+    </form>
+</div>
+
+<!-- 재고 추가 -->
+<div class="section">
+    <h2>재고 추가</h2>
+    <form th:action="@{/admin/inventory/add}" method="post">
+        <div class="form-group">
+            <label>음료 이름:</label>
+            <input type="text" name="name" required>
+        </div>
+        <div class="form-group">
+            <label>수량:</label>
+            <input type="number" name="quantity" required>
+        </div>
+        <button type="submit">재고 추가</button>
+    </form>
+</div>
+
+<!-- 화폐 추가 -->
+<div class="section">
+    <h2>화폐 추가</h2>
+    <form th:action="@{/admin/coin/add}" method="post">
+        <div class="form-group">
+            <label>화폐 단위:</label>
+            <input type="number" name="denomination" required>
+        </div>
+        <div class="form-group">
+            <label>수량:</label>
+            <input type="number" name="quantity" required>
+        </div>
+        <button type="submit">화폐 추가</button>
+    </form>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>로그인</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        body {
+            background-color: #f0f2f5;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+        }
+
+        .login-container {
+            width: 400px;
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0px 10px 20px rgba(0, 0, 0, 0.1);
+            text-align: center;
+        }
+
+        .login-header {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 20px;
+        }
+
+        .alert {
+            padding: 10px;
+            margin-bottom: 15px;
+            border-radius: 5px;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .alert-error {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+
+        .alert-success {
+            background-color: #d4edda;
+            color: #155724;
+        }
+
+        .login-form .form-group {
+            margin-bottom: 15px;
+            text-align: left;
+        }
+
+        .login-form input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-bottom: 10px;
+        }
+
+        .login-button {
+            background-color: #007bff;
+            color: #fff;
+            padding: 10px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        .login-button:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <div class="login-header">관리자 로그인</div>
+
+    <!-- 에러 메시지 -->
+    <div th:if="${param.error}" class="alert alert-error">
+        아이디 또는 비밀번호가 잘못되었습니다.
+    </div>
+
+    <!-- 로그아웃 메시지 -->
+    <div th:if="${param.logout}" class="alert alert-success">
+        로그아웃이 성공적으로 완료되었습니다.
+    </div>
+
+    <form class="login-form" th:action="@{/login}" method="post">
+        <div class="form-group">
+            <label for="username">아이디</label>
+            <input type="text" id="username" name="username" placeholder="아이디 입력" required>
+        </div>
+
+        <div class="form-group">
+            <label for="password">비밀번호</label>
+            <input type="password" id="password" name="password" placeholder="비밀번호 입력" required>
+        </div>
+
+        <button type="submit" class="login-button">로그인</button>
+    </form>
+</div>
+
+</body>
+</html>
