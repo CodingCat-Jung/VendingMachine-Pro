@@ -1,8 +1,12 @@
+import util.AESUtil;
+
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
+import java.net.Socket;
+import java.nio.charset.StandardCharsets;
 import java.sql.ResultSet;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
@@ -158,10 +162,26 @@ public class Adminmenu extends JFrame {
             String log = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) +
                     " - 수금: " + denom + "원 x " + quantity + "개";
             collectHistory.push(log);
-            DBManager.insertCollectHistory(denom, quantity);
+
+            // AES 암호화 + 소켓 전송
+            try {
+                String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+                String json = String.format("{\"type\":\"collect\",\"denomination\":%d,\"amount\":%d,\"time\":\"%s\"}", denom, quantity, timestamp);
+                String encrypted = AESUtil.encrypt(json);
+
+                try (Socket socket = new Socket("127.0.0.1", 9999);
+                     OutputStream out = socket.getOutputStream()) {
+                    out.write(encrypted.getBytes(StandardCharsets.UTF_8));
+                    out.flush();
+                    System.out.println("[✅] 수금 데이터 전송 완료: " + encrypted);
+                }
+            } catch (Exception ex) {
+                System.err.println("[❌] 수금 전송 오류: " + ex.getMessage());
+            }
 
             JOptionPane.showMessageDialog(null, denom + "원 권 " + quantity + "개 수금 완료.");
             showMoneyStatus();
+
         } catch (NumberFormatException e) {
             JOptionPane.showMessageDialog(null, "입력 형식이 잘못되었습니다. 숫자를 입력하세요.");
         } catch (Exception e) {

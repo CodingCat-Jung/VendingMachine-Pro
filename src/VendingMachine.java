@@ -1,3 +1,6 @@
+import util.AESUtil;
+import util.ClientSocketSender;
+
 import javax.swing.*;
 import java.awt.*;
 import java.util.*;
@@ -155,7 +158,7 @@ public class VendingMachine extends JFrame {
     }
 
     private void insertMoney(int amount) {
-        if (inputMoney + amount > 7000) {
+        if (inputMoney != null && inputMoney + amount > 7000) {
             JOptionPane.showMessageDialog(this, "총 7000원을 초과할 수 없습니다.");
             return;
         }
@@ -171,9 +174,15 @@ public class VendingMachine extends JFrame {
             return;
         }
 
+        // 💡 동적 할당
+        if (inputMoney == null) {
+            inputMoney = new Integer(amount);
+        } else {
+            inputMoney = new Integer(inputMoney + amount);  // 새로운 객체로 할당
+        }
+
         money.increase();
         DBManager.updateMoneyQuantity(amount, money.getCount());  // 💾 DB 반영
-        inputMoney += amount;
 
         if (amount == 1000) count1000++;
 
@@ -182,13 +191,13 @@ public class VendingMachine extends JFrame {
     }
 
 
+
     private void returnMoney() {
         if (inputMoney == null || inputMoney == 0) return;
 
         int change = inputMoney;
         Map<Integer, Integer> plan = new LinkedHashMap<>();
 
-        // 시뮬레이션: 반환 가능한지 먼저 확인
         for (int denom : moneyMap.keySet()) {
             Money money = moneyMap.get(denom);
             int available = money.getCount();
@@ -205,31 +214,41 @@ public class VendingMachine extends JFrame {
             return;
         }
 
-        // 가능하면 실제로 화폐 차감
+        // 반환할 화폐 처리
         for (Map.Entry<Integer, Integer> entry : plan.entrySet()) {
             moneyMap.get(entry.getKey()).decrease(entry.getValue());
             DBManager.updateMoneyQuantity(entry.getKey(), moneyMap.get(entry.getKey()).getCount());
         }
 
-        inputMoney = null;
+        inputMoney = null;  // 💡 동적 할당 해제
         count1000 = 0;
         JOptionPane.showMessageDialog(this, "반환된 화폐: " + plan);
-        inputMoney = 0;
         updateMoneyLabel();
         updateButtonStatus();
     }
-
 
     private void updateMoneyLabel() {
         moneyLabel.setText("현재 잔액: ₩" + (inputMoney != null ? inputMoney : 0));
     }
 
     public void updateButtonStatus() {
+        // 만약 inputMoney가 null이라면 모든 버튼을 비활성화
+        if (inputMoney == null) {
+            for (String key : inventories.keySet()) {
+                JButton btn = purchaseButtons.get(key);
+                btn.setBackground(Color.RED);
+                btn.setEnabled(false);
+            }
+            return;
+        }
+
         for (String key : inventories.keySet()) {
             Inventory inv = inventories.get(key);
             JButton btn = purchaseButtons.get(key);
+
             if (inputMoney >= inv.getPrice() && !inv.isOutOfStock()) {
                 btn.setBackground(Color.GREEN);
+
                 btn.setEnabled(true);
             } else {
                 btn.setBackground(Color.RED);
@@ -237,6 +256,7 @@ public class VendingMachine extends JFrame {
             }
         }
     }
+
 
     private void purchaseBeverage(String key) {
         Inventory inv = inventories.get(key);
@@ -364,6 +384,21 @@ class SaleThread extends Thread {
         // DB에 저장할 때는 id를 기반으로 저장
         Adminmenu.logSale(inventory.getId(), inventory.getName(), inventory.getPrice());
 
+        // 🔒 AES 암호화 + 소켓 전송
+        String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        String plainJson = String.format("{\"type\":\"sale\",\"beverage\":\"%s\",\"price\":%d,\"time\":\"%s\"}",
+                inventory.getName(), inventory.getPrice(), timestamp);
+
+        System.out.println("✅ 암호화 전 JSON: " + plainJson);
+
+        try {
+            String encryptedJson = AESUtil.encrypt(plainJson); // 암호화
+            System.out.println("📤 암호화된 Base64: " + encryptedJson);
+            ClientSocketSender.sendData(encryptedJson);        // 소켓 전송
+        } catch (Exception e) {
+            e.printStackTrace();
+            System.err.println("[소켓 전송 실패] 판매 데이터 전송 중 오류 발생");
+        }
     }
 }
 
